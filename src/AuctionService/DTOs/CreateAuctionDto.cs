@@ -18,7 +18,6 @@ namespace AuctionService.DTOs
         public string Color { get; set; }
          [Required]
         public int Mileage { get; set; }
-         [Required]
         public string VIN { get; set; }
          [Required]
         public string ImageUrl { get; set; }

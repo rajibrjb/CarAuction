@@ -6,6 +6,10 @@ using AuctionService.Data;
 using AuctionService.DTOs;
 using AuctionService.Entities;
 using AutoMapper;
+using AutoMapper.QueryableExtensions;
+using Contracts;
+using MassTransit;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,28 +21,38 @@ namespace AuctionService.Controllers
     {
         private readonly AuctionDbContext context;
         private readonly IMapper mapper;
-        public AuctionController(AuctionDbContext _context, IMapper _mapper)
+        private readonly IPublishEndpoint publishEndpoint;
+
+        public AuctionController(AuctionDbContext _context, IMapper _mapper,
+            IPublishEndpoint _publishEndpoint)
         {
             this.context = _context;
             this.mapper = _mapper;
+            this.publishEndpoint = _publishEndpoint;
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<AuctionDto>>> GetAuctions()
+        public async Task<ActionResult<List<AuctionDto>>> GetAllAuctions(string date)
         {
+            var queryable = context.Auctions.OrderBy(x => x.Item.Make).AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(date))
+            {
+                queryable = queryable.Where(x => x.UpdatedAt.CompareTo(DateTime.Parse(date).ToUniversalTime()) >= 0);
+            }
             var auctions = await context.Auctions
-                .Include(x=>x.Item)
-                .OrderBy(x =>x.Item.Make)
+                .Include(x => x.Item)
+                .OrderBy(x => x.Item.Make)
                 .ToListAsync();
 
-            return mapper.Map<List<AuctionDto>>(auctions);
+            return await queryable.ProjectTo<AuctionDto>(mapper.ConfigurationProvider).ToListAsync();
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<AuctionDto>> GetAuctionById(Guid id)
         {
             var auction = await context.Auctions
-                .Include(x=>x.Item)
+                .Include(x => x.Item)
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (auction == null)
@@ -48,22 +62,32 @@ namespace AuctionService.Controllers
 
             return mapper.Map<AuctionDto>(auction);
         }
+
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult> CreateAuction(CreateAuctionDto createAuctionDto)
         {
             var auction = mapper.Map<Auction>(createAuctionDto);
-            // TODO: Add Current user as seller
-            auction.Seller = "Fake Seller";
-            context.Add(auction);
+   
+            auction.Seller = User.Identity.Name;
+            context.Auctions.Add(auction);
+
+
+            var newAuction = mapper.Map<AuctionDto>(auction);
+
+            await publishEndpoint.Publish(mapper.Map<AuctionCreated>(newAuction));
+
             var result = await context.SaveChangesAsync() > 0;
-            if(!result)
+
+            if (!result)
             {
                 return BadRequest("Failed to create auction! Please try again.");
             }
 
-            return CreatedAtAction(nameof(GetAuctionById), new {auction.Id}, mapper.Map<AuctionDto>(auction));
+            return CreatedAtAction(nameof(GetAuctionById), new { auction.Id }, newAuction);
         }
 
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<ActionResult> UpdateAuction(Guid id, UpdateAuctionDto updateAuctionDto)
         {
@@ -72,8 +96,12 @@ namespace AuctionService.Controllers
             {
                 return NotFound();
             }
-            // TODO: Add Current user as seller
-            
+
+            if(auction.Seller != User.Identity.Name)
+            {
+                return Forbid();
+            }
+
             auction.Item.Make = updateAuctionDto.Make ?? auction.Item.Make;
             auction.Item.Model = updateAuctionDto.Model ?? auction.Item.Model;
             auction.Item.Year = updateAuctionDto.Year ?? auction.Item.Year;
@@ -81,16 +109,20 @@ namespace AuctionService.Controllers
             auction.Item.Mileage = updateAuctionDto.Mileage ?? auction.Item.Mileage;
             auction.UpdatedAt = DateTime.UtcNow;
 
+
+            await publishEndpoint.Publish(mapper.Map<AuctionUpdated>(auction));
+
             var result = await context.SaveChangesAsync() > 0;
-            if(!result)
+
+            if (!result)
             {
                 return BadRequest("Failed to update auction! Please try again.");
             }
-            
+
 
             return Ok();
         }
-
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<ActionResult> DeleteAuction(Guid id)
         {
@@ -99,10 +131,17 @@ namespace AuctionService.Controllers
             {
                 return NotFound();
             }
-            // TODO: Add Current user as seller
+            
+            if(auction.Seller != User.Identity.Name)
+            {
+                return Forbid();
+            }
             context.Auctions.Remove(auction);
+
+            await publishEndpoint.Publish<AuctionDeleted>(new { Id = auction.Id.ToString() });
+
             var result = await context.SaveChangesAsync() > 0;
-            if(!result)
+            if (!result)
             {
                 return BadRequest("Failed to delete auction! Please try again.");
             }

@@ -213,7 +213,6 @@ namespace AuctionService.Data
 
             auctionDbContext.SaveChanges();
 
-
         }
     }
 }
