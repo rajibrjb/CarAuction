@@ -7,7 +7,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{568EAC29-389
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuctionService", "src\AuctionService\AuctionService.csproj", "{EE4890F4-D6D8-49B7-B6FE-C176171D32BC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SearchService", "src\searchService\SearchService.csproj", "{2F54BDEE-B5E2-4AD7-9122-93D6BC1FB537}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SearchService", "src\SearchService\SearchService.csproj", "{2F54BDEE-B5E2-4AD7-9122-93D6BC1FB537}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Contracts", "src\Contracts\Contracts.csproj", "{EB5B450C-86C3-4E88-B569-1F9B4D2FE479}"
 EndProject
