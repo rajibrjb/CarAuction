@@ -46,10 +46,7 @@ internal static class HostingExtensions
         // Todo: change this to use a real certificate for production scenarios
         builder.Services.ConfigureApplicationCookie(options =>
         {
-            options.Cookie.Name = "IdentityService";
             options.Cookie.SameSite = SameSiteMode.Lax;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-            options.Cookie.IsEssential = true;
         });
 
         builder.Services.AddAuthentication()

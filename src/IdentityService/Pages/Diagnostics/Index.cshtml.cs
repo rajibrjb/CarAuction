@@ -13,7 +13,8 @@ public class Index : PageModel
         
     public async Task<IActionResult> OnGet()
     {
-        var localAddresses = new string[] { "127.0.0.1", "::1", HttpContext.Connection.LocalIpAddress.ToString() };
+        var localAddresses = new string[] {"::ffff:172.22.0.6","127.0.0.1", "::1", HttpContext.Connection.LocalIpAddress.ToString() };
+        // Console.WriteLine($"Remote IP: {HttpContext.Connection.RemoteIpAddress.ToString()}");
         if (!localAddresses.Contains(HttpContext.Connection.RemoteIpAddress.ToString()))
         {
             return NotFound();
